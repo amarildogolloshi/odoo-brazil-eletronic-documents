@@ -21,7 +21,7 @@
 
 from openerp.osv import fields, orm
 from ..sped.nfe.processing.xml import send_correction_letter
-
+from openerp.exceptions import Warning
 
 class NfeInvoiceCce(orm.TransientModel):
 
@@ -44,13 +44,18 @@ class NfeInvoiceCce(orm.TransientModel):
         (_check_name,
          'Tamanho de mensagem inválida !',
          ['mensagem'])]
+    # validate unwanted chars here like "–" is not allowed
+    # 
+    def validate_message(self, message):
+        if u"–" in message:
+            raise Warning("Invalid char found : '–' ")
 
     def action_enviar_carta(self, cr, uid, ids, context=None):
 
         if context is None:
             context = {}
-
-        correcao = self.browse(cr, uid, ids)[0].mensagem
+        self.validate_message(self.browse(cr, uid, ids)[0].mensagem)
+        correcao = unicode(self.browse(cr, uid, ids)[0].mensagem)
 
         obj_invoice = self.pool.get('account.invoice')
         obj_cce = self.pool.get('l10n_br_account.invoice.cce')
@@ -91,7 +96,6 @@ class NfeInvoiceCce(orm.TransientModel):
                     'cce',
                     'xml',
                     context)
-
             except Exception as e:
                 vals = {
                     'type': '-1',
